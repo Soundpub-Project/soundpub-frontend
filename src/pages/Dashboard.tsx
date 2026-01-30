@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, DollarSign, Wrench, Store, Users, LogOut,
-  Menu, X, ChevronDown
+  Menu, X, ChevronDown, ListOrdered
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,8 +10,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import PricingManager from '@/components/dashboard/PricingManager';
 import ServicesManager from '@/components/dashboard/ServicesManager';
 import StorePartnersManager from '@/components/dashboard/StorePartnersManager';
+import DistributionStepsManager from '@/components/dashboard/DistributionStepsManager';
 
-type Tab = 'overview' | 'pricing' | 'services' | 'store-partners';
+type Tab = 'overview' | 'pricing' | 'services' | 'store-partners' | 'distribution-steps';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -29,6 +30,7 @@ const Dashboard = () => {
     { id: 'pricing' as Tab, name: 'Harga', icon: DollarSign },
     { id: 'services' as Tab, name: 'Layanan', icon: Wrench },
     { id: 'store-partners' as Tab, name: 'Store Partners', icon: Store },
+    { id: 'distribution-steps' as Tab, name: 'Langkah Distribusi', icon: ListOrdered },
   ];
 
   const renderContent = () => {
@@ -39,6 +41,8 @@ const Dashboard = () => {
         return <ServicesManager />;
       case 'store-partners':
         return <StorePartnersManager />;
+      case 'distribution-steps':
+        return <DistributionStepsManager />;
       default:
         return (
           <div className="space-y-6">

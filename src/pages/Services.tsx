@@ -34,6 +34,14 @@ interface AdditionalService {
   sort_order: number | null;
 }
 
+interface DistributionStep {
+  id: string;
+  step_number: string;
+  title: string;
+  description: string | null;
+  sort_order: number | null;
+}
+
 // Icon mapping
 const iconMap: Record<string, LucideIcon> = {
   Upload,
@@ -50,6 +58,7 @@ const iconMap: Record<string, LucideIcon> = {
 const Services = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
+  const [distributionSteps, setDistributionSteps] = useState<DistributionStep[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<AdditionalService | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,16 +69,19 @@ const Services = () => {
 
   const fetchData = async () => {
     try {
-      const [servicesRes, additionalRes] = await Promise.all([
+      const [servicesRes, additionalRes, stepsRes] = await Promise.all([
         supabase.from('services').select('*').order('sort_order'),
         supabase.from('additional_services').select('*').order('sort_order'),
+        supabase.from('distribution_steps').select('*').order('sort_order'),
       ]);
 
       if (servicesRes.error) throw servicesRes.error;
       if (additionalRes.error) throw additionalRes.error;
+      if (stepsRes.error) throw stepsRes.error;
 
       setServices(servicesRes.data || []);
       setAdditionalServices(additionalRes.data || []);
+      setDistributionSteps(stepsRes.data || []);
     } catch (error) {
       console.error('Error fetching services:', error);
     } finally {
@@ -86,13 +98,6 @@ const Services = () => {
     if (!iconName) return Plus;
     return iconMap[iconName] || Plus;
   };
-
-  const steps = [
-    { number: "01", title: "Daftar", description: "Buat akun dan lengkapi profil artis Anda" },
-    { number: "02", title: "Upload", description: "Unggah file musik dan isi informasi rilisan" },
-    { number: "03", title: "Review", description: "Tim kami akan mereview kualitas audio & metadata" },
-    { number: "04", title: "Distribute", description: "Musik Anda live di 100+ platform digital" },
-  ];
 
   if (isLoading) {
     return (
@@ -192,33 +197,35 @@ const Services = () => {
           )}
 
           {/* How It Works */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-16"
-          >
-            <h2 className="text-3xl font-bold font-display text-center mb-12">
-              Cara <span className="text-gradient">Menjual Musik</span> Anda
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {steps.map((step, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="text-center"
-                >
-                  <div className="text-5xl font-bold text-gradient font-display mb-4">
-                    {step.number}
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm">{step.description}</p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+          {distributionSteps.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mb-16"
+            >
+              <h2 className="text-3xl font-bold font-display text-center mb-12">
+                Cara <span className="text-gradient">Menjual Musik</span> Anda
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {distributionSteps.map((step, index) => (
+                  <motion.div
+                    key={step.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="text-center"
+                  >
+                    <div className="text-5xl font-bold text-gradient font-display mb-4">
+                      {step.step_number}
+                    </div>
+                    <h3 className="font-semibold text-lg mb-2">{step.title}</h3>
+                    <p className="text-muted-foreground text-sm">{step.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           {/* CTA */}
           <motion.div
