@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      distribution_steps: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          sort_order: number | null
+          step_number: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number | null
+          step_number: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number | null
+          step_number?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pricing_categories: {
         Row: {
           created_at: string
