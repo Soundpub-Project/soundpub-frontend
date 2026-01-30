@@ -79,7 +79,7 @@ const Katalog = () => {
           genre: 'Rock', 
           release_year: '2024',
           cover_url: '',
-          audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+          audio_url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3'
         },
         { 
           id: '2', 
@@ -89,7 +89,7 @@ const Katalog = () => {
           genre: 'Pop', 
           release_year: '2024',
           cover_url: '',
-          audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
+          audio_url: 'https://cdn.pixabay.com/download/audio/2022/10/25/audio_946b0939c1.mp3'
         },
         { 
           id: '3', 
@@ -99,7 +99,7 @@ const Katalog = () => {
           genre: 'Jazz', 
           release_year: '2023',
           cover_url: '',
-          audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
+          audio_url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3'
         },
         { 
           id: '4', 
@@ -109,7 +109,7 @@ const Katalog = () => {
           genre: 'Indie', 
           release_year: '2024',
           cover_url: '',
-          audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3'
+          audio_url: 'https://cdn.pixabay.com/download/audio/2021/11/25/audio_91b32e02f9.mp3'
         },
         { 
           id: '5', 
@@ -119,7 +119,7 @@ const Katalog = () => {
           genre: 'Electronic', 
           release_year: '2023',
           cover_url: '',
-          audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3'
+          audio_url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_8cb749d484.mp3'
         },
         { 
           id: '6', 
@@ -129,7 +129,7 @@ const Katalog = () => {
           genre: 'Acoustic', 
           release_year: '2024',
           cover_url: '',
-          audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3'
+          audio_url: 'https://cdn.pixabay.com/download/audio/2022/08/02/audio_884fe92c21.mp3'
         },
       ]);
     } finally {
