@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { FileText, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
@@ -27,6 +28,7 @@ interface PricingPlan {
 }
 
 const Pricing = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<PricingCategory[]>([]);
   const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -35,6 +37,17 @@ const Pricing = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle URL category parameter
+  useEffect(() => {
+    const categorySlug = searchParams.get('category');
+    if (categorySlug && categories.length > 0) {
+      const category = categories.find(c => c.slug === categorySlug);
+      if (category) {
+        setActiveCategory(category.id);
+      }
+    }
+  }, [searchParams, categories]);
 
   const fetchData = async () => {
     try {
@@ -60,13 +73,30 @@ const Pricing = () => {
         features: Array.isArray(plan.features) ? plan.features : []
       })));
       
-      if (categoriesData && categoriesData.length > 0) {
+      // Set active category from URL or first category
+      const categorySlug = searchParams.get('category');
+      if (categorySlug && categoriesData) {
+        const category = categoriesData.find(c => c.slug === categorySlug);
+        if (category) {
+          setActiveCategory(category.id);
+        } else if (categoriesData.length > 0) {
+          setActiveCategory(categoriesData[0].id);
+        }
+      } else if (categoriesData && categoriesData.length > 0) {
         setActiveCategory(categoriesData[0].id);
       }
     } catch (error) {
       console.error('Error fetching pricing data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    const category = categories.find(c => c.id === categoryId);
+    if (category) {
+      setSearchParams({ category: category.slug });
     }
   };
 
@@ -177,7 +207,7 @@ const Pricing = () => {
                 <Button
                   key={category.id}
                   variant={activeCategory === category.id ? 'hero' : 'outline'}
-                  onClick={() => setActiveCategory(category.id)}
+                  onClick={() => handleCategoryChange(category.id)}
                   className="rounded-full"
                 >
                   {category.name}
