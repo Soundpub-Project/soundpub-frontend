@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Save, X, Loader2, Image } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, Loader2, Image, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AdditionalService {
@@ -16,11 +16,16 @@ interface AdditionalService {
   sort_order: number | null;
 }
 
+const STORAGE_BUCKET = 'service-covers';
+
 const AdditionalServicesManager = () => {
   const [services, setServices] = useState<AdditionalService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -47,6 +52,75 @@ const AdditionalServicesManager = () => {
       toast.error('Gagal memuat data');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(data.path);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Gagal mengupload gambar');
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('File harus berupa gambar');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5MB');
+      return;
+    }
+
+    const url = await uploadImage(file);
+    if (url) {
+      setFormData({ ...formData, cover_url: url });
+      toast.success('Gambar berhasil diupload');
+    }
+  };
+
+  const deleteOldImage = async (url: string) => {
+    try {
+      // Extract filename from URL
+      const urlParts = url.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      
+      await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove([fileName]);
+    } catch (error) {
+      console.error('Error deleting old image:', error);
     }
   };
 
@@ -86,6 +160,9 @@ const AdditionalServicesManager = () => {
     }
     
     try {
+      // Get old service to check if cover changed
+      const oldService = services.find(s => s.id === id);
+      
       const { error } = await supabase
         .from('additional_services')
         .update({
@@ -97,6 +174,11 @@ const AdditionalServicesManager = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Delete old image if it was replaced
+      if (oldService?.cover_url && oldService.cover_url !== formData.cover_url && oldService.cover_url.includes(STORAGE_BUCKET)) {
+        await deleteOldImage(oldService.cover_url);
+      }
       
       toast.success('Layanan berhasil diupdate');
       setEditingId(null);
@@ -112,12 +194,19 @@ const AdditionalServicesManager = () => {
     if (!confirm('Yakin ingin menghapus layanan ini?')) return;
     
     try {
+      const service = services.find(s => s.id === id);
+      
       const { error } = await supabase
         .from('additional_services')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      // Delete associated image
+      if (service?.cover_url && service.cover_url.includes(STORAGE_BUCKET)) {
+        await deleteOldImage(service.cover_url);
+      }
       
       toast.success('Layanan berhasil dihapus');
       fetchServices();
@@ -144,6 +233,10 @@ const AdditionalServicesManager = () => {
     setFormData({ title: '', description: '', price: '', cover_url: '' });
   };
 
+  const removeCover = () => {
+    setFormData({ ...formData, cover_url: '' });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -151,6 +244,68 @@ const AdditionalServicesManager = () => {
       </div>
     );
   }
+
+  const ImageUploadSection = ({ inputRef }: { inputRef: React.RefObject<HTMLInputElement> }) => (
+    <div>
+      <label className="text-sm text-muted-foreground">Cover Image</label>
+      <div className="mt-2">
+        {formData.cover_url ? (
+          <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
+            <img 
+              src={formData.cover_url} 
+              alt="Cover preview" 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <Button 
+                type="button" 
+                size="sm" 
+                variant="secondary"
+                onClick={() => inputRef.current?.click()}
+                disabled={isUploading}
+              >
+                <Upload className="w-4 h-4 mr-1" />
+                Ganti
+              </Button>
+              <Button 
+                type="button" 
+                size="sm" 
+                variant="destructive"
+                onClick={removeCover}
+              >
+                <X className="w-4 h-4 mr-1" />
+                Hapus
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full aspect-video rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            {isUploading ? (
+              <Loader2 className="w-8 h-8 animate-spin" />
+            ) : (
+              <>
+                <Upload className="w-8 h-8" />
+                <span className="text-sm">Klik untuk upload gambar</span>
+                <span className="text-xs text-muted-foreground">JPG, PNG, WebP, GIF (Max 5MB)</span>
+              </>
+            )}
+          </button>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -197,16 +352,11 @@ const AdditionalServicesManager = () => {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Cover URL (opsional)</label>
-              <Input
-                placeholder="https://example.com/image.jpg"
-                value={formData.cover_url}
-                onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
-              />
-            </div>
+            
+            <ImageUploadSection inputRef={fileInputRef} />
+
             <div className="flex gap-2">
-              <Button onClick={handleCreate} size="sm">
+              <Button onClick={handleCreate} size="sm" disabled={isUploading}>
                 <Save className="w-4 h-4 mr-2" />
                 Simpan
               </Button>
@@ -249,15 +399,11 @@ const AdditionalServicesManager = () => {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Cover URL</label>
-                    <Input
-                      value={formData.cover_url}
-                      onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
-                    />
-                  </div>
+                  
+                  <ImageUploadSection inputRef={editFileInputRef} />
+
                   <div className="flex gap-2">
-                    <Button onClick={() => handleUpdate(service.id)} size="sm">
+                    <Button onClick={() => handleUpdate(service.id)} size="sm" disabled={isUploading}>
                       <Save className="w-4 h-4 mr-2" />
                       Simpan
                     </Button>
