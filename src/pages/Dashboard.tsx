@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, DollarSign, Wrench, Store, Users, LogOut,
-  Menu, X, ChevronDown, ListOrdered
+  Menu, X, ChevronDown, ListOrdered, PackagePlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,8 +11,9 @@ import PricingManager from '@/components/dashboard/PricingManager';
 import ServicesManager from '@/components/dashboard/ServicesManager';
 import StorePartnersManager from '@/components/dashboard/StorePartnersManager';
 import DistributionStepsManager from '@/components/dashboard/DistributionStepsManager';
+import AdditionalServicesManager from '@/components/dashboard/AdditionalServicesManager';
 
-type Tab = 'overview' | 'pricing' | 'services' | 'store-partners' | 'distribution-steps';
+type Tab = 'overview' | 'pricing' | 'services' | 'additional-services' | 'store-partners' | 'distribution-steps';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -29,6 +30,7 @@ const Dashboard = () => {
     { id: 'overview' as Tab, name: 'Overview', icon: LayoutDashboard },
     { id: 'pricing' as Tab, name: 'Harga', icon: DollarSign },
     { id: 'services' as Tab, name: 'Layanan', icon: Wrench },
+    { id: 'additional-services' as Tab, name: 'Layanan Tambahan', icon: PackagePlus },
     { id: 'store-partners' as Tab, name: 'Store Partners', icon: Store },
     { id: 'distribution-steps' as Tab, name: 'Langkah Distribusi', icon: ListOrdered },
   ];
@@ -39,6 +41,8 @@ const Dashboard = () => {
         return <PricingManager />;
       case 'services':
         return <ServicesManager />;
+      case 'additional-services':
+        return <AdditionalServicesManager />;
       case 'store-partners':
         return <StorePartnersManager />;
       case 'distribution-steps':
