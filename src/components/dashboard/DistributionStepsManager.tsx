@@ -6,6 +6,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Pencil, Trash2, Save, X, Loader2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface DistributionStep {
   id: string;
@@ -14,6 +31,118 @@ interface DistributionStep {
   description: string | null;
   sort_order: number | null;
 }
+
+interface SortableStepItemProps {
+  step: DistributionStep;
+  isEditing: boolean;
+  formData: { step_number: string; title: string; description: string };
+  setFormData: (data: { step_number: string; title: string; description: string }) => void;
+  onEdit: (step: DistributionStep) => void;
+  onUpdate: (id: string) => void;
+  onDelete: (id: string) => void;
+  onCancel: () => void;
+}
+
+const SortableStepItem = ({
+  step,
+  isEditing,
+  formData,
+  setFormData,
+  onEdit,
+  onUpdate,
+  onDelete,
+  onCancel,
+}: SortableStepItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: step.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={`${isEditing ? 'border-primary/50' : ''} ${isDragging ? 'shadow-lg' : ''}`}
+    >
+      <CardContent className="p-4">
+        {isEditing ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-muted-foreground">Nomor Step</label>
+                <Input
+                  value={formData.step_number}
+                  onChange={(e) => setFormData({ ...formData, step_number: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Judul</label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground">Deskripsi</label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => onUpdate(step.id)} size="sm">
+                <Save className="w-4 h-4 mr-2" />
+                Simpan
+              </Button>
+              <Button onClick={onCancel} variant="outline" size="sm">
+                <X className="w-4 h-4 mr-2" />
+                Batal
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="w-5 h-5 text-muted-foreground" />
+              </button>
+              <div className="text-3xl font-bold text-gradient font-display w-12">
+                {step.step_number}
+              </div>
+              <div>
+                <h4 className="font-semibold">{step.title}</h4>
+                <p className="text-sm text-muted-foreground">{step.description}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => onEdit(step)} variant="ghost" size="icon">
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button onClick={() => onDelete(step.id)} variant="ghost" size="icon" className="text-destructive">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 const DistributionStepsManager = () => {
   const [steps, setSteps] = useState<DistributionStep[]>([]);
@@ -26,6 +155,13 @@ const DistributionStepsManager = () => {
     title: '',
     description: '',
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchSteps();
@@ -45,6 +181,42 @@ const DistributionStepsManager = () => {
       toast.error('Gagal memuat data');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = steps.findIndex((s) => s.id === active.id);
+      const newIndex = steps.findIndex((s) => s.id === over.id);
+
+      const newSteps = arrayMove(steps, oldIndex, newIndex);
+      setSteps(newSteps);
+
+      // Update sort_order in database
+      try {
+        const updates = newSteps.map((step, index) => ({
+          id: step.id,
+          step_number: step.step_number,
+          title: step.title,
+          description: step.description,
+          sort_order: index,
+        }));
+
+        for (const update of updates) {
+          await supabase
+            .from('distribution_steps')
+            .update({ sort_order: update.sort_order })
+            .eq('id', update.id);
+        }
+
+        toast.success('Urutan berhasil diubah');
+      } catch (error) {
+        console.error('Error updating order:', error);
+        toast.error('Gagal mengubah urutan');
+        fetchSteps(); // Revert on error
+      }
     }
   };
 
@@ -140,7 +312,10 @@ const DistributionStepsManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Langkah Distribusi</h3>
+        <div>
+          <h3 className="text-lg font-semibold">Langkah Distribusi</h3>
+          <p className="text-sm text-muted-foreground">Drag & drop untuk mengubah urutan</p>
+        </div>
         {!isCreating && !editingId && (
           <Button onClick={() => setIsCreating(true)} size="sm">
             <Plus className="w-4 h-4 mr-2" />
@@ -196,72 +371,30 @@ const DistributionStepsManager = () => {
         </Card>
       )}
 
-      {/* Steps List */}
-      <div className="space-y-3">
-        {steps.map((step) => (
-          <Card key={step.id} className={editingId === step.id ? 'border-primary/50' : ''}>
-            <CardContent className="p-4">
-              {editingId === step.id ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm text-muted-foreground">Nomor Step</label>
-                      <Input
-                        value={formData.step_number}
-                        onChange={(e) => setFormData({ ...formData, step_number: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground">Judul</label>
-                      <Input
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Deskripsi</label>
-                    <Textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => handleUpdate(step.id)} size="sm">
-                      <Save className="w-4 h-4 mr-2" />
-                      Simpan
-                    </Button>
-                    <Button onClick={cancelEdit} variant="outline" size="sm">
-                      <X className="w-4 h-4 mr-2" />
-                      Batal
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="text-3xl font-bold text-gradient font-display w-12">
-                      {step.step_number}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">{step.title}</h4>
-                      <p className="text-sm text-muted-foreground">{step.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => startEdit(step)} variant="ghost" size="icon">
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button onClick={() => handleDelete(step.id)} variant="ghost" size="icon" className="text-destructive">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Sortable Steps List */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-3">
+            {steps.map((step) => (
+              <SortableStepItem
+                key={step.id}
+                step={step}
+                isEditing={editingId === step.id}
+                formData={formData}
+                setFormData={setFormData}
+                onEdit={startEdit}
+                onUpdate={handleUpdate}
+                onDelete={handleDelete}
+                onCancel={cancelEdit}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {steps.length === 0 && !isCreating && (
         <div className="text-center py-8 text-muted-foreground">
