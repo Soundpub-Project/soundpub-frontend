@@ -19,6 +19,7 @@ interface MusicPlayerContextType {
   duration: number;
   volume: number;
   queue: Track[];
+  isShuffleMode: boolean;
   playTrack: (track: Track) => void;
   togglePlay: () => void;
   toggleExpand: () => void;
@@ -28,9 +29,21 @@ interface MusicPlayerContextType {
   prevTrack: () => void;
   addToQueue: (track: Track) => void;
   clearQueue: () => void;
+  shufflePlay: (tracks: Track[]) => void;
+  toggleShuffle: () => void;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined);
+
+// Fisher-Yates shuffle algorithm
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
 
 export const MusicPlayerProvider = ({ children }: { children: ReactNode }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
@@ -40,6 +53,7 @@ export const MusicPlayerProvider = ({ children }: { children: ReactNode }) => {
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.7);
   const [queue, setQueue] = useState<Track[]>([]);
+  const [isShuffleMode, setIsShuffleMode] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -148,6 +162,25 @@ export const MusicPlayerProvider = ({ children }: { children: ReactNode }) => {
     setQueue([]);
   };
 
+  const shufflePlay = (tracks: Track[]) => {
+    if (tracks.length === 0) return;
+    
+    const shuffled = shuffleArray(tracks);
+    const [first, ...rest] = shuffled;
+    
+    setIsShuffleMode(true);
+    setQueue(rest);
+    playTrack(first);
+  };
+
+  const toggleShuffle = () => {
+    setIsShuffleMode(!isShuffleMode);
+    if (!isShuffleMode && queue.length > 0) {
+      // Shuffle the current queue
+      setQueue(shuffleArray(queue));
+    }
+  };
+
   return (
     <MusicPlayerContext.Provider
       value={{
@@ -158,6 +191,7 @@ export const MusicPlayerProvider = ({ children }: { children: ReactNode }) => {
         duration,
         volume,
         queue,
+        isShuffleMode,
         playTrack,
         togglePlay,
         toggleExpand,
@@ -167,6 +201,8 @@ export const MusicPlayerProvider = ({ children }: { children: ReactNode }) => {
         prevTrack,
         addToQueue,
         clearQueue,
+        shufflePlay,
+        toggleShuffle,
       }}
     >
       {children}
