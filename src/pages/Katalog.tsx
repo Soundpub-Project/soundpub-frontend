@@ -1,21 +1,25 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Music, Loader2 } from "lucide-react";
+import { Music, Loader2, Shuffle } from "lucide-react";
 import { useCatalog } from "@/hooks/useCatalog";
 import { ReleaseCard } from "@/components/catalog/ReleaseCard";
 import { CatalogFilters } from "@/components/catalog/CatalogFilters";
 import { InfiniteScrollTrigger } from "@/components/catalog/InfiniteScrollTrigger";
+import { useMusicPlayer, Track } from "@/contexts/MusicPlayerContext";
+import { Button } from "@/components/ui/button";
 
 const Katalog = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [genreFilter, setGenreFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [releaseTypeFilter, setReleaseTypeFilter] = useState<string>("all");
+  const { shufflePlay, isShuffleMode } = useMusicPlayer();
 
   const {
     releases,
+    allReleases,
     isLoading,
     error,
     genres,
@@ -30,6 +34,28 @@ const Katalog = () => {
     yearFilter,
     releaseTypeFilter,
   });
+
+  // Convert all tracks from all releases to player tracks format
+  const allTracks = useMemo((): Track[] => {
+    return allReleases.flatMap(release => 
+      release.tracks?.map(track => ({
+        id: track.id,
+        title: track.title,
+        artist: track.artist_name || release.artist_name,
+        album: release.title,
+        cover_url: release.cover_url,
+        audio_url: track.audio_url,
+        genre: track.genre || release.genre || undefined,
+        release_year: release.release_date?.split('-')[0],
+      })) || []
+    );
+  }, [allReleases]);
+
+  const handleShufflePlay = () => {
+    if (allTracks.length > 0) {
+      shufflePlay(allTracks);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -89,6 +115,26 @@ const Katalog = () => {
               className="text-center py-12"
             >
               <p className="text-destructive mb-4">{error}</p>
+            </motion.div>
+          )}
+
+          {/* Shuffle Play Button */}
+          {!isLoading && allTracks.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="flex justify-center mb-8"
+            >
+              <Button
+                onClick={handleShufflePlay}
+                size="lg"
+                className="gap-2 px-8"
+                variant={isShuffleMode ? "default" : "outline"}
+              >
+                <Shuffle className="w-5 h-5" />
+                Shuffle Play ({allTracks.length} lagu)
+              </Button>
             </motion.div>
           )}
 
